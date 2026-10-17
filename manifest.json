@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ionutm87.idle-watch",
   "name": "Idle Watch",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "ionutm87",
   "license": "MIT",
   "description": "Warns about hung processes and heavy CPU/GPU use while you are away",
