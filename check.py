@@ -73,9 +73,9 @@ def find_issues(a, procs, prev, interval, uptime):
         age = uptime - p["start"]
         if age >= a.hung_minutes * 60 and p["cpu"] / max(age, 1) >= 0.5 and orphaned(p, procs):
             issues.append({"key": f"hung:{pid}:{p['start']}", "kind": "hung", "pid": int(pid), "start": p["start"],
-                           "text": f"Agățat de {int(age // 60)} min, CPU {p['cpu'] / age * 100:.0f}%: {label(pid, p)}",
-                           "hint": f"Procesul PID {pid} a rămas fără părinte și ține CPU-ul ocupat. Află ce face "
-                                   f"(cmdline, cwd, `strace -p {pid}`, py-spy dacă e Python) și ce l-a pornit."})
+                           "text": f"Hung for {int(age // 60)} min, CPU {p['cpu'] / age * 100:.0f}%: {label(pid, p)}",
+                           "hint": f"Process PID {pid} lost its parent and keeps the CPU busy. Find out what it is doing "
+                                   f"(cmdline, cwd, `strace -p {pid}`, py-spy if it is Python) and what started it."})
     if not a.idle:
         return issues
     if interval:
@@ -85,27 +85,27 @@ def find_issues(a, procs, prev, interval, uptime):
                 pct = (p["cpu"] - old[1]) / interval * 100
                 key = f"cpu:{pid}:{p['start']}"
                 if pct >= a.cpu and not any(i["key"].startswith(f"hung:{pid}:") for i in issues):
-                    issues.append({"key": key, "kind": "cpu", "pid": int(pid), "start": p["start"], "text": f"CPU {pct:.0f}% în absența ta: {label(pid, p)}",
-                                   "hint": f"Află ce face PID {pid} cât nu sunt la calculator și dacă e normal."})
+                    issues.append({"key": key, "kind": "cpu", "pid": int(pid), "start": p["start"], "text": f"CPU {pct:.0f}% while you were away: {label(pid, p)}",
+                                   "hint": f"Find out what PID {pid} does while I am away from the computer and whether that is normal."})
     gpu = nvidia_util()
     if gpu >= a.gpu:
-        issues.append({"key": "gpu", "kind": "gpu", "text": f"GPU NVIDIA {gpu}% în absența ta",
-                       "hint": "Vezi cu `nvidia-smi` ce proces folosește GPU-ul."})
+        issues.append({"key": "gpu", "kind": "gpu", "text": f"NVIDIA GPU {gpu}% while you were away",
+                       "hint": "Use `nvidia-smi` to see which process is using the GPU."})
     temp = cpu_temp()
     if temp >= a.temp:
-        issues.append({"key": "temp", "kind": "temp", "text": f"CPU la {temp:.0f} °C în absența ta",
-                       "hint": "Află ce încălzește procesorul (procese, ventilatoare, profil de putere)."})
+        issues.append({"key": "temp", "kind": "temp", "text": f"CPU at {temp:.0f} °C while you were away",
+                       "hint": "Find out what is heating the CPU (processes, fans, power profile)."})
     return issues
 
 
-STATES = {"R": "activ (rulează)", "S": "în așteptare", "I": "în așteptare", "D": "blocat în I/O",
-          "Z": "zombie", "T": "oprit (stopped)", "t": "oprit (debug)"}
+STATES = {"R": "active (running)", "S": "waiting", "I": "waiting", "D": "blocked on I/O",
+          "Z": "zombie", "T": "stopped", "t": "stopped (debug)"}
 
 
 def human_age(s):
     s = int(s)
     d, h, m = s // 86400, s % 86400 // 3600, s % 3600 // 60
-    return f"{d}z {h}h" if d else f"{h}h {m}m" if h else f"{m}m" if m else f"{s}s"
+    return f"{d}d {h}h" if d else f"{h}h {m}m" if h else f"{m}m" if m else f"{s}s"
 
 
 def suspicions(pid, p, procs, uptime):
@@ -119,15 +119,15 @@ def suspicions(pid, p, procs, uptime):
         pass
     out = []
     if orphaned(p, procs) and avg >= 0.5 and age >= 600:
-        out.append(f"fără părinte și {avg * 100:.0f}% CPU în medie de {human_age(age)} (probabil agățat)")
+        out.append(f"no parent and {avg * 100:.0f}% CPU on average over {human_age(age)} (probably hung)")
     if exe.endswith(" (deleted)"):
-        out.append("binarul de pe disc a fost șters sau înlocuit (după update e normal)")
+        out.append("the binary on disk was deleted or replaced (normal after an update)")
     if exe.startswith(("/tmp/", "/dev/shm/", "/var/tmp/")):
-        out.append(f"rulează dintr-un director temporar: {exe}")
+        out.append(f"running from a temporary directory: {exe}")
     if p["state"] == "D":
-        out.append("blocat în I/O (stare D)")
+        out.append("blocked on I/O (state D)")
     if p["state"] == "Z":
-        out.append("zombie: s-a terminat, dar părintele nu l-a recoltat")
+        out.append("zombie: it has exited, but its parent has not reaped it")
     return out
 
 
@@ -186,20 +186,20 @@ def details(pid, start):
         "pid": int(pid), "start": p["start"], "name": p["comm"],
         "cmd": read(f"/proc/{pid}/cmdline").replace("\0", " ").strip()[:600],
         "fields": [
-            ["Stare", STATES.get(p["state"], p["state"]) + f" · {now.get(pid, 0):.0f}% CPU acum"],
-            ["Pornit", time.strftime("%d %b %H:%M:%S", time.localtime(time.time() - age)) + f" (acum {human_age(age)})"],
-            ["CPU mediu", f"{p['cpu'] / max(age, 1) * 100:.0f}% · {human_age(p['cpu'])} CPU total"],
+            ["State", STATES.get(p["state"], p["state"]) + f" · {now.get(pid, 0):.0f}% CPU now"],
+            ["Started", time.strftime("%d %b %H:%M:%S", time.localtime(time.time() - age)) + f" ({human_age(age)} ago)"],
+            ["Avg CPU", f"{p['cpu'] / max(age, 1) * 100:.0f}% · {human_age(p['cpu'])} CPU total"],
             ["RAM", f"{rss_mb(pid):.0f} MB" + (f" · swap {status['VmSwap'].strip()}" if status.get("VmSwap", "0 kB").strip() != "0 kB" else "")],
-            ["Utilizator", user],
-            ["Părinte", f"{parent.get('comm', '?')} ({p['ppid']})"],
-            ["Copii", ", ".join(children[:8]) + (f" +{len(children) - 8}" if len(children) > 8 else "") or "—"],
-            ["Fire", str(p["threads"])],
-            ["Unitate", unit or "—"],
-            ["Executabil", exe or "—"],
-            ["Director", cwd or "—"],
-            ["Fișiere deschise", str(fds)],
-            ["Rețea", (", ".join(listen[:6]) or "fără porturi ascultate") + f" · {estab} conexiuni"],
-            ["Disc I/O", f"citit {mb(io['read_bytes'])} · scris {mb(io['write_bytes'])}" if io else "—"],
+            ["User", user],
+            ["Parent", f"{parent.get('comm', '?')} ({p['ppid']})"],
+            ["Children", ", ".join(children[:8]) + (f" +{len(children) - 8}" if len(children) > 8 else "") or "—"],
+            ["Threads", str(p["threads"])],
+            ["Unit", unit or "—"],
+            ["Executable", exe or "—"],
+            ["Directory", cwd or "—"],
+            ["Open files", str(fds)],
+            ["Network", (", ".join(listen[:6]) or "no listening ports") + f" · {estab} connections"],
+            ["Disc I/O", f"read {mb(io['read_bytes'])} · written {mb(io['write_bytes'])}" if io else "—"],
         ],
         "suspect": suspicions(pid, p, procs, uptime),
     }))
@@ -286,10 +286,10 @@ def stale_groups():
             restart = None
         g.update(upgraded=ups.get(g["pkg"], "") if g["pkg"] else "", count=len(g["procs"]), restart=restart)
         g["prompt"] = with_prompt({
-            "title": f"{g['name']} rulează încă din binarul vechi ({g['count']} procese, {g['mem']} MB)",
-            "detail": f"pachet {g['pkg']} {g['ver']}, actualizat {g['upgraded'] or '?'}" if g["pkg"] else f"fișier {g['key']}",
-            "hint": f"PID-uri: {', '.join(str(r['pid']) for r in g['procs'][:12])}. Repornire posibilă: {restart or 'necunoscută'}. "
-                    "Spune-mi cum o repornesc pe versiunea nouă fără să pierd date."})["prompt"]
+            "title": f"{g['name']} is still running from the old binary ({g['count']} processes, {g['mem']} MB)",
+            "detail": f"package {g['pkg']} {g['ver']}, upgraded {g['upgraded'] or '?'}" if g["pkg"] else f"file {g['key']}",
+            "hint": f"PIDs: {', '.join(str(r['pid']) for r in g['procs'][:12])}. Possible restart: {restart or 'unknown'}. "
+                    "Tell me how to restart it on the new version without losing data."})["prompt"]
         g["procs"].sort(key=lambda r: r["mem"], reverse=True)
         out.append(g)
     out.sort(key=lambda g: g["mem"], reverse=True)
@@ -328,26 +328,26 @@ def stop_procs(rows, wait=8):
 def stop_group(key):
     g = find_group(key)
     if not g:
-        return print("grupul nu mai rulează")
+        return print("the group is no longer running")
     n, forced = stop_procs(g["procs"])
-    print(f"{g['name']}: {n} procese oprite" + (f" ({forced} forțat)" if forced else ""))
+    print(f"{g['name']}: {n} processes stopped" + (f" ({forced} forced)" if forced else ""))
 
 
 def restart_group(key):
     g = find_group(key)
     if not g:
-        return print("grupul nu mai rulează")
+        return print("the group is no longer running")
     r = g["restart"]
     if not r:
-        return print(f"{g['name']}: nu știu cum să-l repornesc; folosește Oprește")
+        return print(f"{g['name']}: I don't know how to restart it; use Stop")
     if r["kind"] == "service":
         cmd = ["systemctl", "--user", "restart", r["unit"]] if r["user"] else ["pkexec", "systemctl", "restart", r["unit"]]
         res = subprocess.run(cmd, capture_output=True, text=True)
-        return print(f"{r['unit']} repornit" if res.returncode == 0 else f"eroare: {res.stderr.strip()[:120]}")
+        return print(f"{r['unit']} restarted" if res.returncode == 0 else f"error: {res.stderr.strip()[:120]}")
     n, forced = stop_procs(g["procs"])
     subprocess.Popen(["uwsm-app", "--", r["id"]], start_new_session=True,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print(f"{g['name']}: {n} procese oprite" + (f" ({forced} forțat)" if forced else "") + f", pornit din nou din {r['id']}")
+    print(f"{g['name']}: {n} processes stopped" + (f" ({forced} forced)" if forced else "") + f", pornit din nou din {r['id']}")
 
 
 def run(cmd):
@@ -359,7 +359,7 @@ def run(cmd):
 
 def when(ts):
     t = time.localtime(ts)
-    return time.strftime("%H:%M" if t.tm_yday == time.localtime().tm_yday else "ieri %H:%M", t)
+    return time.strftime("%H:%M" if t.tm_yday == time.localtime().tm_yday else "yesterday %H:%M", t)
 
 
 def last_error(user, unit):
@@ -385,13 +385,13 @@ def unit_faults():
             looping = u["sub"] == "auto-restart"
             out.append({
                 "key": f"unit:{'user' if user else 'system'}:{name}", "kind": "unit", "urgent": True,
-                "title": f"{name} " + (f"cade și repornește în buclă ({n} reporniri)" if looping else "a eșuat"),
+                "title": f"{name} " + (f"keeps crashing and restarting in a loop ({n} restarts)" if looping else "failed"),
                 "detail": last_error(user, name) or u["description"],
-                "hint": f"Verifică `systemctl{' --user' if user else ''} status {name}` și "
-                        f"`journalctl{' --user' if user else ''} -u {name} -n 80`; vezi fișierul unității și ce lipsește.",
-                "actions": [{"id": "restart", "icon": "", "tip": "Repornește serviciul", "confirm": "Da, repornește"},
-                            {"id": "disable", "icon": "", "tip": "Oprește și dezactivează serviciul",
-                             "confirm": "Da, dezactivează"}]})
+                "hint": f"Check `systemctl{' --user' if user else ''} status {name}` and "
+                        f"`journalctl{' --user' if user else ''} -u {name} -n 80`; look at the unit file and what is missing.",
+                "actions": [{"id": "restart", "icon": "", "tip": "Restart the service", "confirm": "Yes, restart"},
+                            {"id": "disable", "icon": "", "tip": "Stop and disable the service",
+                             "confirm": "Yes, disable"}]})
     return out
 
 
@@ -405,12 +405,12 @@ def crash_faults():
         try:
             sig = signal.Signals(c["sig"]).name
         except ValueError:
-            sig = f"semnal {c['sig']}"
+            sig = f"signal {c['sig']}"
         out.append({"key": f"crash:{c['time']}", "kind": "crash", "urgent": True,
-                    "title": f"{os.path.basename(c['exe'])} s-a prăbușit ({sig}) la {when(c['time'] / 1e6)}",
-                    "detail": f"{c['exe']} · PID {c['pid']} · detalii: coredumpctl info {c['pid']}",
-                    "hint": f"Citește `coredumpctl info {c['pid']}` (backtrace) și jurnalul din jurul orei; "
-                            "spune-mi dacă e un bug cunoscut și ce pot face (update, config, raportare).",
+                    "title": f"{os.path.basename(c['exe'])} crashed ({sig}) at {when(c['time'] / 1e6)}",
+                    "detail": f"{c['exe']} · PID {c['pid']} · details: coredumpctl info {c['pid']}",
+                    "hint": f"Read `coredumpctl info {c['pid']}` (backtrace) and the log around that time; "
+                            "tell me whether it is a known bug and what I can do (update, config, report).",
                     "actions": [ACK]})
     oom = [["journalctl", "-k", "-g", r"Out of memory: Killed process"],
            ["journalctl", "-u", "systemd-oomd", "-g", "Killed"]]
@@ -422,12 +422,12 @@ def crash_faults():
                 continue
             msg = e.get("MESSAGE", "")
             m = re.search(r"Killed process \d+ \((.+?)\)", msg) or re.search(r"Killed (\S+) due to", msg)
-            name = os.path.basename(m.group(1)) if m else "un proces"
+            name = os.path.basename(m.group(1)) if m else "a process"
             out.append({"key": f"oom:{e['__REALTIME_TIMESTAMP']}", "kind": "oom", "urgent": True,
-                        "title": f"Memoria s-a umplut: a fost omorât {name} la {when(int(e['__REALTIME_TIMESTAMP']) / 1e6)}",
+                        "title": f"Memory ran out: {name} was killed at {when(int(e['__REALTIME_TIMESTAMP']) / 1e6)}",
                         "detail": msg[:200], "actions": [ACK],
-                        "hint": "Vezi `journalctl -k --since=-24h -g 'Out of memory'` și cine consumă memoria acum; "
-                                "propune cum evit (swap/zram, limite, aplicația vinovată)."})
+                        "hint": "See `journalctl -k --since=-24h -g 'Out of memory'` and who is using memory now; "
+                                "suggest how to avoid it (swap/zram, limits, the offending app)."})
     return out
 
 
@@ -440,11 +440,11 @@ def process_faults(procs):
         par = procs.get(ppid, {"comm": "?", "start": 0})
         out.append({"key": f"zombie:{ppid}:{par['start']}", "kind": "zombie", "urgent": False,
                     "pid": int(ppid), "start": par["start"],
-                    "title": (f"1 proces zombie lăsat" if len(names) == 1 else f"{len(names)} procese zombie lăsate")
-                             + f" de {par['comm']} (PID {ppid})",
-                    "detail": ", ".join(sorted(set(names))) + f" · nu consumă resurse; dispar când se închide {par['comm']}",
-                    "hint": f"Părintele {par['comm']} (PID {ppid}) nu-și recoltează copiii. Spune-mi dacă e un bug "
-                            "cunoscut și dacă merită repornit.",
+                    "title": (f"1 zombie process left" if len(names) == 1 else f"{len(names)} zombie processes left")
+                             + f" by {par['comm']} (PID {ppid})",
+                    "detail": ", ".join(sorted(set(names))) + f" · uses no resources; goes away when {par['comm']} exits",
+                    "hint": f"Parent {par['comm']} (PID {ppid}) does not reap its children. Tell me whether it is a known bug "
+                            "and whether it is worth restarting.",
                     "actions": [ACK]})
     # ponytail: D seen in two snapshots 1 s apart; heavy but healthy I/O can show up briefly.
     time.sleep(1)
@@ -453,9 +453,9 @@ def process_faults(procs):
         if p["state"] == "D" and p["ppid"] not in ("0", "2") and later.get(pid, {}).get("state") == "D":
             out.append({"key": f"dstate:{pid}:{p['start']}", "kind": "dstate", "urgent": False,
                         "pid": int(pid), "start": p["start"],
-                        "title": f"{p['comm']} (PID {pid}) blocat în I/O",
-                        "detail": f"așteaptă în kernel la {read(f'/proc/{pid}/wchan') or '?'} · nu poate fi oprit până nu se deblochează",
-                        "hint": f"Vezi `sudo cat /proc/{pid}/stack`, `dmesg` și ce disc, mount de rețea sau driver îl blochează.",
+                        "title": f"{p['comm']} (PID {pid}) blocked on I/O",
+                        "detail": f"waiting in the kernel at {read(f'/proc/{pid}/wchan') or '?'} · cannot be stopped until it unblocks",
+                        "hint": f"See `sudo cat /proc/{pid}/stack`, `dmesg` and which disk, network mount or driver is blocking it.",
                         "actions": [ACK]})
     return out
 
@@ -473,13 +473,13 @@ def disk_faults():
         pct = du.used / du.total * 100
         if pct >= 90:
             out.append({"key": f"disk:{m}", "kind": "disk", "urgent": True,
-                        "title": f"Discul {m} e plin {pct:.0f}%", "detail": f"{du.free / 2**30:.1f} GB liberi", "actions": [],
-                        "hint": f"Găsește ce ocupă loc pe {m} (cache pacman/yay, jurnal, docker, ~/.cache, descărcări) "
-                                "și propune ce se poate șterge."})
+                        "title": f"Disk {m} is {pct:.0f}% full", "detail": f"{du.free / 2**30:.1f} GB free", "actions": [],
+                        "hint": f"Find what is taking space on {m} (pacman/yay cache, journal, docker, ~/.cache, downloads) "
+                                "and suggest what can be deleted."})
     return out
 
 
-ACK = {"id": "ack", "icon": "", "tip": "Am văzut, ascunde"}
+ACK = {"id": "ack", "icon": "", "tip": "Seen, hide it"}
 
 
 def acks():
@@ -500,10 +500,10 @@ def find_faults(procs):
 
 def with_prompt(f):
     """What the panel's Claude button types into a new Claude Code session for this problem."""
-    f["prompt"] = (f"Pe laptopul meu Omarchy (Arch Linux, Hyprland) panoul idle-watch semnalează: "
-                   f"{f.get('title') or f.get('text')}.\n" + (f"Detalii: {f['detail']}\n" if f.get("detail") else "")
-                   + f"{f.get('hint', '')}\nDiagnostichează cauza, explică-mi pe scurt și repar-o. "
-                   "Cere-mi confirmarea înainte de orice oprește, șterge, dezactivează sau instalează ceva.")
+    f["prompt"] = (f"On my Omarchy laptop (Arch Linux, Hyprland) the idle-watch panel reports: "
+                   f"{f.get('title') or f.get('text')}.\n" + (f"Details: {f['detail']}\n" if f.get("detail") else "")
+                   + f"{f.get('hint', '')}\nDiagnose the cause, explain it briefly and fix it. "
+                   "Ask me for confirmation before stopping, deleting, disabling or installing anything.")
     return f
 
 
@@ -515,10 +515,10 @@ def fix(key, action):
             keys = sorted(acks() | {key})
             with open(ACKS, "w") as f:
                 json.dump(keys, f)
-        return print("ascuns")
+        return print("hidden")
     kind, scope, unit = key.split(":", 2)
     if kind != "unit" or action not in ("restart", "disable"):
-        return print("acțiune necunoscută")
+        return print("unknown action")
     if scope == "user":
         cmds = [["systemctl", "--user", "restart", unit]] if action == "restart" else \
                [["systemctl", "--user", "disable", "--now", unit], ["systemctl", "--user", "reset-failed", unit]]
@@ -528,21 +528,21 @@ def fix(key, action):
     for c in cmds:
         r = subprocess.run(c, capture_output=True, text=True)
         if r.returncode != 0 and "reset-failed" not in c:
-            return print(f"eroare: {r.stderr.strip()[:160]}")
-    print(f"{unit} " + ("repornit" if action == "restart" else "oprit și dezactivat"))
+            return print(f"error: {r.stderr.strip()[:160]}")
+    print(f"{unit} " + ("restarted" if action == "restart" else "stopped and disabled"))
 
 
 def kill(pid, start, force):
     """Signal pid only if it is still the process the popup showed (PIDs get reused)."""
     p = processes().get(str(pid))
     if not p or p["start"] != start:
-        print("procesul nu mai există")
+        print("the process no longer exists")
         return
     try:
         os.kill(pid, 9 if force else 15)
-        print("KILL trimis" if force else "TERM trimis")
+        print("KILL sent" if force else "TERM sent")
     except PermissionError:
-        print("fără drepturi (proces root)")
+        print("permission denied (root process)")
 
 
 def main():
@@ -604,11 +604,11 @@ def main():
         if not a.no_notify:
             for i in issues:
                 if i["key"] not in notified:
-                    title = "Proces agățat" if i["kind"] == "hung" else "Activitate intensă cât ai lipsit"
+                    title = "Hung process" if i["kind"] == "hung" else "Heavy activity while you were away"
                     subprocess.run(["notify-send", "-u", "critical", "-a", "Idle watch", title, i["text"]])
             for f in faults:
                 if f["urgent"] and f["key"] not in notified:
-                    subprocess.run(["notify-send", "-u", "critical", "-a", "Idle watch", "Problemă în sistem", f["title"]])
+                    subprocess.run(["notify-send", "-u", "critical", "-a", "Idle watch", "System problem", f["title"]])
 
         with open(STATE, "w") as f:
             json.dump({"t": now, "idle": a.idle, "issues": issues, "faults": faults,

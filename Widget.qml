@@ -132,7 +132,7 @@ Panel {
     root.pending = ""
     if (!g || groupProc.running) return
     root.busy = g.key
-    root.status = (kind === "stop" ? "Opresc " : "Repornesc ") + g.name + "…"
+    root.status = (kind === "stop" ? "Stopping " : "Restarting ") + g.name + "…"
     groupProc.command = ["python3", root.script, kind === "stop" ? "--stop-group" : "--restart-group", g.key]
     groupProc.running = true
   }
@@ -270,9 +270,9 @@ Panel {
     foreground: root.allOk ? root.okColor : root.fg
     slotSize: Style.bar.statusSlot
     fontSize: Style.font.caption
-    tooltipText: root.allOk ? "Totul e în regulă"
+    tooltipText: root.allOk ? "All good"
       : root.issues.map(i => i.text).concat(root.faults.map(f => f.title))
-          .concat(root.stale.map(g => g.name + ": " + g.count + " procese din binar vechi")).join("\n")
+          .concat(root.stale.map(g => g.name + ": " + g.count + " processes on an old binary")).join("\n")
     onPressed: root.toggle()
   }
 
@@ -299,11 +299,11 @@ Panel {
         width: Math.min(Style.space(580), parent.width)
         spacing: Style.space(4)
 
-        Heading { visible: root.faultKeys.length > 0 || root.allOk; text: root.allOk ? "Totul e în regulă" : "Probleme (" + root.faultKeys.length + ")" }
+        Heading { visible: root.faultKeys.length > 0 || root.allOk; text: root.allOk ? "All good" : "Problems (" + root.faultKeys.length + ")" }
 
         Label {
           visible: root.allOk
-          text: "\uf00c  Niciun proces agățat, serviciu căzut, crash sau binar vechi."
+          text: "\uf00c  No hung processes, failed services, crashes or stale binaries."
           color: root.okColor
         }
 
@@ -322,7 +322,7 @@ Panel {
 
         Heading {
           visible: root.stale.length > 0
-          text: "Rulează din binar vechi (" + root.stale.reduce((n, g) => n + g.count, 0) + " procese)"
+          text: "Running from an old binary (" + root.stale.reduce((n, g) => n + g.count, 0) + " processes)"
         }
         Repeater {
           model: root.staleKeys
@@ -331,7 +331,7 @@ Panel {
 
         Heading {
           visible: root.staleGroup !== ""
-          text: root.groupFor(root.staleGroup) ? root.groupFor(root.staleGroup).count + " procese din " + root.groupFor(root.staleGroup).name : ""
+          text: root.groupFor(root.staleGroup) ? root.groupFor(root.staleGroup).count + " processes of " + root.groupFor(root.staleGroup).name : ""
         }
         Repeater {
           model: root.staleGroup !== "" && root.groupFor(root.staleGroup) ? root.groupFor(root.staleGroup).procs : []
@@ -341,8 +341,8 @@ Panel {
         Label {
           visible: !root.allOk
           text: root.staleGroup !== ""
-            ? "● activ acum  ○ în așteptare  ⚠ suspect · click pe grup ca să-l strângi"
-            : "click pe o problemă cu proces sau pe un grup pentru detalii"
+            ? "● active now  ○ waiting  ⚠ suspect · click the group to collapse it"
+            : "click a problem with a process, or a group, for details"
           opacity: 0.55
           topPadding: Style.space(6)
         }
@@ -378,7 +378,7 @@ Panel {
             anchors.left: parent.left
             anchors.right: closeDetails.left
             anchors.verticalCenter: parent.verticalCenter
-            text: detailsPane.d ? (detailsPane.d.gone ? "Procesul s-a încheiat" : detailsPane.d.name + "  ·  PID " + detailsPane.d.pid) : "Se încarcă…"
+            text: detailsPane.d ? (detailsPane.d.gone ? "The process has exited" : detailsPane.d.name + "  ·  PID " + detailsPane.d.pid) : "Loading…"
             font.pixelSize: Style.font.title
             font.bold: true
             elide: Text.ElideRight
@@ -390,7 +390,7 @@ Panel {
             anchors.verticalCenter: parent.verticalCenter
             iconText: ""
             foreground: root.fg
-            tooltipText: "Închide detaliile (Esc)"
+            tooltipText: "Close details (Esc)"
             onClicked: root.select(root.selected)
           }
         }
@@ -442,7 +442,7 @@ Panel {
         Button {
           visible: !!detailsPane.d && !detailsPane.d.gone
           readonly property bool force: root.isTermed(detailsPane.d)
-          text: force ? "Forțează oprirea (KILL)" : "Oprește procesul (TERM)"
+          text: force ? "Force stop (KILL)" : "Stop process (TERM)"
           iconText: force ? "" : ""
           foreground: force || (detailsPane.d && detailsPane.d.suspect && detailsPane.d.suspect.length) ? Color.urgent : root.fg
           bordered: true
@@ -477,8 +477,8 @@ Panel {
     readonly property bool isBusy: root.busy === key
     readonly property bool isOpen: root.staleGroup === group.key
     readonly property string pkgText: group.pkg
-      ? group.ver + (group.upgraded ? " · upgrade " + group.upgraded : "")
-      : "fără pachet · " + group.key
+      ? group.ver + (group.upgraded ? " · upgraded " + group.upgraded : "")
+      : "no package · " + group.key
 
     width: list.width
     implicitHeight: Math.max(stopAllButton.height, confirmButton.visible ? confirmButton.implicitHeight : 0, staleName.implicitHeight) + Style.space(4)
@@ -515,7 +515,7 @@ Panel {
       anchors.rightMargin: Style.space(8)
       anchors.verticalCenter: parent.verticalCenter
       visible: staleRow.confirmKind === ""
-      text: staleRow.isBusy ? (root.status || "…") : staleRow.group.count + " procese · " + staleRow.group.mem + " MB"
+      text: staleRow.isBusy ? (root.status || "…") : staleRow.group.count + " processes · " + staleRow.group.mem + " MB"
       opacity: 0.8
     }
 
@@ -526,8 +526,8 @@ Panel {
       anchors.rightMargin: Style.space(6)
       anchors.verticalCenter: parent.verticalCenter
       text: staleRow.confirmKind === "stop"
-        ? "Da, oprește " + staleRow.group.count + " procese"
-        : "Da, repornește" + (staleRow.group.restart && staleRow.group.restart.kind === "desktop" ? " (se închid ferestrele)" : "")
+        ? "Yes, stop " + staleRow.group.count + " processes"
+        : "Yes, restart" + (staleRow.group.restart && staleRow.group.restart.kind === "desktop" ? " (windows will close)" : "")
       foreground: Color.urgent
       bordered: true
       onClicked: root.runGroup(staleRow.confirmKind, staleRow.group)
@@ -541,7 +541,7 @@ Panel {
       anchors.verticalCenter: parent.verticalCenter
       iconText: "\uf00d"
       foreground: root.fg
-      tooltipText: "Anulează"
+      tooltipText: "Cancel"
       onClicked: root.pending = ""
     }
 
@@ -552,7 +552,7 @@ Panel {
       visible: staleRow.confirmKind === "" && !staleRow.isBusy && !!staleRow.group.prompt
       iconText: "\uf0d0"
       foreground: root.fg
-      tooltipText: "Repară cu Claude (deschide o sesiune nouă)"
+      tooltipText: "Repair with Claude (opens a new session)"
       onClicked: root.askClaude(staleRow.group.prompt)
     }
 
@@ -565,7 +565,7 @@ Panel {
       enabled: !!staleRow.group.restart
       iconText: "\uf01e"
       foreground: root.fg
-      tooltipText: staleRow.group.restart ? "Repornește " + staleRow.group.name + " pe versiunea nouă" : "Nu știu cum să-l repornesc"
+      tooltipText: staleRow.group.restart ? "Restart " + staleRow.group.name + " on the new version" : "I don't know how to restart it"
       onClicked: root.armGroup("restart", staleRow.group)
     }
 
@@ -576,7 +576,7 @@ Panel {
       visible: staleRow.confirmKind === "" && !staleRow.isBusy
       iconText: "\uf04d"
       foreground: root.fg
-      tooltipText: "Oprește toate cele " + staleRow.group.count + " procese"
+      tooltipText: "Stop all " + staleRow.group.count + " processes"
       onClicked: root.armGroup("stop", staleRow.group)
     }
   }
@@ -654,7 +654,7 @@ Panel {
       anchors.verticalCenter: parent.verticalCenter
       iconText: "\uf00d"
       foreground: root.fg
-      tooltipText: "Anulează"
+      tooltipText: "Cancel"
       onClicked: root.pending = ""
     }
 
@@ -668,7 +668,7 @@ Panel {
         visible: !!faultRow.f.prompt
         iconText: "\uf0d0"
         foreground: root.fg
-        tooltipText: "Repară cu Claude (deschide o sesiune nouă)"
+        tooltipText: "Repair with Claude (opens a new session)"
         onClicked: root.askClaude(faultRow.f.prompt)
       }
 
@@ -750,7 +750,7 @@ Panel {
       anchors.verticalCenter: parent.verticalCenter
       iconText: procRow.termed ? "" : ""
       foreground: procRow.termed ? Color.urgent : root.fg
-      tooltipText: procRow.termed ? "Forțează oprirea (KILL)" : "Oprește (TERM) · PID " + procRow.row.pid
+      tooltipText: procRow.termed ? "Force stop (KILL)" : "Stop (TERM) · PID " + procRow.row.pid
       onClicked: root.stop(procRow.row)
     }
   }

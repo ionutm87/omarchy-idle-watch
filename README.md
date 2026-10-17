@@ -34,7 +34,6 @@ Stale binaries:
 - One critical notification per issue. Heavy-use issues, failed units, crashes, OOM kills and full disks notify; zombies, D-state processes and stale binaries only show in the panel.
 - A runtime-suspended NVIDIA dGPU is never woken: `nvidia-smi` is only called when the driver reports the GPU as active.
 - Acknowledged faults are hidden and remembered in `~/.local/state/omarchy/idle-watch-ack.json`.
-- Panel and notification texts are currently in Romanian.
 
 ## Actions
 
