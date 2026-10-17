@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "ionut.idle-watch",
+  "name": "Idle Watch",
+  "version": "1.0.0",
+  "author": "ionut",
+  "license": "MIT",
+  "description": "Warns about hung processes and heavy CPU/GPU use while you are away",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Widget.qml"
+  },
+  "barWidget": {
+    "displayName": "Idle Watch",
+    "description": "Green check when all is well, a warning when something is wrong: hung orphan processes, heavy CPU/GPU/heat after a stretch with no input, failed units, crashes, OOM kills, full disks. Sends a critical notification once per issue.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "center",
+    "defaults": {
+      "idleMinutes": 30,
+      "cpuPercent": 50,
+      "gpuPercent": 30,
+      "tempC": 85,
+      "hungMinutes": 10
+    },
+    "schema": [
+      { "key": "idleMinutes", "type": "integer", "label": "Idle after (minutes)", "min": 1, "max": 240, "step": 5, "defaultValue": 30, "description": "Minutes with no keyboard/mouse input before CPU/GPU checks start." },
+      { "key": "cpuPercent", "type": "integer", "label": "Process CPU while idle (%)", "min": 10, "max": 800, "step": 10, "defaultValue": 50, "description": "Per-process CPU, as percent of one core, that counts as heavy while idle." },
+      { "key": "gpuPercent", "type": "integer", "label": "NVIDIA GPU while idle (%)", "min": 5, "max": 100, "step": 5, "defaultValue": 30, "description": "dGPU utilization that counts as heavy while idle. A suspended dGPU is never woken to check." },
+      { "key": "tempC", "type": "integer", "label": "CPU temperature while idle (°C)", "min": 50, "max": 100, "step": 5, "defaultValue": 85, "description": "Package temperature that counts as too hot while idle." },
+      { "key": "hungMinutes", "type": "integer", "label": "Hung after (minutes)", "min": 1, "max": 240, "step": 5, "defaultValue": 10, "description": "An orphaned process averaging over half a core for this long is reported as hung, idle or not." }
+    ]
+  }
+}
