@@ -36,6 +36,8 @@ Panel {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : (many || one + "s")) }
+
   function check() {
     if (checkProc.running) return
     checkProc.command = ["python3", root.script,
@@ -272,7 +274,7 @@ Panel {
     fontSize: Style.font.caption
     tooltipText: root.allOk ? "All good"
       : root.issues.map(i => i.text).concat(root.faults.map(f => f.title))
-          .concat(root.stale.map(g => g.name + ": " + g.count + " processes on an old binary")).join("\n")
+          .concat(root.stale.map(g => g.name + ": " + root.plural(g.count, "process", "processes") + " on an old binary")).join("\n")
     onPressed: root.toggle()
   }
 
@@ -322,7 +324,7 @@ Panel {
 
         Heading {
           visible: root.stale.length > 0
-          text: "Running from an old binary (" + root.stale.reduce((n, g) => n + g.count, 0) + " processes)"
+          text: "Running from an old binary (" + root.plural(root.stale.reduce((n, g) => n + g.count, 0), "process", "processes") + ")"
         }
         Repeater {
           model: root.staleKeys
@@ -331,7 +333,7 @@ Panel {
 
         Heading {
           visible: root.staleGroup !== ""
-          text: root.groupFor(root.staleGroup) ? root.groupFor(root.staleGroup).count + " processes of " + root.groupFor(root.staleGroup).name : ""
+          text: root.groupFor(root.staleGroup) ? root.plural(root.groupFor(root.staleGroup).count, "process", "processes") + " of " + root.groupFor(root.staleGroup).name : ""
         }
         Repeater {
           model: root.staleGroup !== "" && root.groupFor(root.staleGroup) ? root.groupFor(root.staleGroup).procs : []
@@ -515,7 +517,7 @@ Panel {
       anchors.rightMargin: Style.space(8)
       anchors.verticalCenter: parent.verticalCenter
       visible: staleRow.confirmKind === ""
-      text: staleRow.isBusy ? (root.status || "…") : staleRow.group.count + " processes · " + staleRow.group.mem + " MB"
+      text: staleRow.isBusy ? (root.status || "…") : root.plural(staleRow.group.count, "process", "processes") + " · " + staleRow.group.mem + " MB"
       opacity: 0.8
     }
 
@@ -526,7 +528,7 @@ Panel {
       anchors.rightMargin: Style.space(6)
       anchors.verticalCenter: parent.verticalCenter
       text: staleRow.confirmKind === "stop"
-        ? "Yes, stop " + staleRow.group.count + " processes"
+        ? "Yes, stop " + root.plural(staleRow.group.count, "process", "processes")
         : "Yes, restart" + (staleRow.group.restart && staleRow.group.restart.kind === "desktop" ? " (windows will close)" : "")
       foreground: Color.urgent
       bordered: true
@@ -576,7 +578,7 @@ Panel {
       visible: staleRow.confirmKind === "" && !staleRow.isBusy
       iconText: "\uf04d"
       foreground: root.fg
-      tooltipText: "Stop all " + staleRow.group.count + " processes"
+      tooltipText: "Stop " + root.plural(staleRow.group.count, "process", "processes")
       onClicked: root.armGroup("stop", staleRow.group)
     }
   }

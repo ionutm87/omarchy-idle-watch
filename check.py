@@ -12,6 +12,10 @@ ACKS = STATE.replace(".json", "-ack.json")  # faults the user chose to hide
 HZ = os.sysconf("SC_CLK_TCK")
 
 
+def plural(n, one, many=None):
+    return f"{n} {one if n == 1 else many or one + 's'}"
+
+
 def read(path):
     try:
         with open(path) as f:
@@ -198,8 +202,8 @@ def details(pid, start):
             ["Executable", exe or "—"],
             ["Directory", cwd or "—"],
             ["Open files", str(fds)],
-            ["Network", (", ".join(listen[:6]) or "no listening ports") + f" · {estab} connections"],
-            ["Disc I/O", f"read {mb(io['read_bytes'])} · written {mb(io['write_bytes'])}" if io else "—"],
+            ["Network", (", ".join(listen[:6]) or "no listening ports") + f" · {plural(estab, 'connection')}"],
+            ["Disk I/O", f"read {mb(io['read_bytes'])} · written {mb(io['write_bytes'])}" if io else "—"],
         ],
         "suspect": suspicions(pid, p, procs, uptime),
     }))
@@ -286,7 +290,7 @@ def stale_groups():
             restart = None
         g.update(upgraded=ups.get(g["pkg"], "") if g["pkg"] else "", count=len(g["procs"]), restart=restart)
         g["prompt"] = with_prompt({
-            "title": f"{g['name']} is still running from the old binary ({g['count']} processes, {g['mem']} MB)",
+            "title": f"{g['name']} is still running from the old binary ({plural(g['count'], 'process', 'processes')}, {g['mem']} MB)",
             "detail": f"package {g['pkg']} {g['ver']}, upgraded {g['upgraded'] or '?'}" if g["pkg"] else f"file {g['key']}",
             "hint": f"PIDs: {', '.join(str(r['pid']) for r in g['procs'][:12])}. Possible restart: {restart or 'unknown'}. "
                     "Tell me how to restart it on the new version without losing data."})["prompt"]
@@ -330,7 +334,7 @@ def stop_group(key):
     if not g:
         return print("the group is no longer running")
     n, forced = stop_procs(g["procs"])
-    print(f"{g['name']}: {n} processes stopped" + (f" ({forced} forced)" if forced else ""))
+    print(f"{g['name']}: {plural(n, 'process', 'processes')} stopped" + (f" ({forced} forced)" if forced else ""))
 
 
 def restart_group(key):
@@ -347,7 +351,7 @@ def restart_group(key):
     n, forced = stop_procs(g["procs"])
     subprocess.Popen(["uwsm-app", "--", r["id"]], start_new_session=True,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print(f"{g['name']}: {n} processes stopped" + (f" ({forced} forced)" if forced else "") + f", pornit din nou din {r['id']}")
+    print(f"{g['name']}: {plural(n, 'process', 'processes')} stopped" + (f" ({forced} forced)" if forced else "") + f", restarted via {r['id']}")
 
 
 def run(cmd):
@@ -385,7 +389,7 @@ def unit_faults():
             looping = u["sub"] == "auto-restart"
             out.append({
                 "key": f"unit:{'user' if user else 'system'}:{name}", "kind": "unit", "urgent": True,
-                "title": f"{name} " + (f"keeps crashing and restarting in a loop ({n} restarts)" if looping else "failed"),
+                "title": f"{name} " + (f"keeps crashing and restarting in a loop ({plural(n, 'restart')})" if looping else "failed"),
                 "detail": last_error(user, name) or u["description"],
                 "hint": f"Check `systemctl{' --user' if user else ''} status {name}` and "
                         f"`journalctl{' --user' if user else ''} -u {name} -n 80`; look at the unit file and what is missing.",
