@@ -2,6 +2,8 @@
 
 An Omarchy shell bar widget that warns about hung processes, heavy CPU/GPU/heat while you are away, and things that are broken on the system.
 
+![Idle Watch panel open below the bar, listing one problem](docs/screenshot.png)
+
 ## What it detects
 
 Checks run every 60 seconds (results are cached for 30 s). Thresholds in bold are configurable, see Settings.
