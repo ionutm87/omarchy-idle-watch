@@ -58,13 +58,13 @@ omarchy plugin add https://github.com/ionutm87/omarchy-idle-watch.git --enable
 Update:
 
 ```
-omarchy plugin update ionut.idle-watch
+omarchy plugin update ionutm87.idle-watch
 ```
 
 Remove:
 
 ```
-omarchy plugin remove ionut.idle-watch
+omarchy plugin remove ionutm87.idle-watch
 ```
 
 ## Settings

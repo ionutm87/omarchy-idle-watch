@@ -12,8 +12,8 @@ import qs.Ui
 // Process names are arbitrary strings, so every Text is PlainText.
 Panel {
   id: root
-  moduleName: "ionut.idle-watch"
-  ipcTarget: "ionut.idle-watch"
+  moduleName: "ionutm87.idle-watch"
+  ipcTarget: "ionutm87.idle-watch"
 
   property var issues: []
   property var termed: ({})       // "pid:start" -> true once TERM was sent
